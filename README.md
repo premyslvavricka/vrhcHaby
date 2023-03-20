@@ -17,6 +17,20 @@ Upload kódu do GitHubu
     
     git push (odešle kód do github repository)
 
+  4) práce s větvema
+  
+    git branch <název větve> (vytvoří větev pro experimentální funkce)
+    
+    bit branch (vypíše větve a ozačí větev, ve které momentálně pracujete)
+    
+    git switch <název větve> (přepíná mezi větvemi, main je "hlavní větev")
+
+    git push --set-upstream origin <název větve>
+    
+  5) merge větví
+  
+    v githubu "Pull requests" se vytvoří request o merge větví, ve kterém se můžou všichni podílet
+    
 
 :)
 
