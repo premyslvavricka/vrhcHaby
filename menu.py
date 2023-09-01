@@ -42,8 +42,3 @@ class Menu:
                         gui.popup("Soubor se nepodařilo otevřít.")
 
         okno_menu.close()
-
-
-okno_menu = Menu()
-
-okno_menu.UkazSe()
