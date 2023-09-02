@@ -1,11 +1,12 @@
-import menu
+import window
 
 def main():
-    print("ahoj")
+    print("start")
 
-    okno = menu.Menu()
-
-    okno.UkazSe()
+    okno = window.GameWindow()
+    okno.ShowMainMenu()
+    okno.Run()
+    okno.Close()
 
 if __name__ == "__main__":
     main()
