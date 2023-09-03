@@ -1,6 +1,5 @@
 import PySimpleGUI as gui
 import gameboard
-import io
 
 class GameWindow:
 
@@ -15,12 +14,13 @@ class GameWindow:
 
         self._load_menu_layout = [
                 [gui.InputText(key="-FILE SEARCH INPUT-"), gui.FilesBrowse("Hledat", file_types = [("JSON", "*.json")], initial_folder=r"C:\Users\Kuzma\OneDrive\Documents\GitHub\vrhcHaby\Uložené hry")], 
-                [gui.Button("Načíst", key="-LOAD GAME BUTTON-"), gui.Button("Zpět", key="-BACK BUTTON-")]]
+                [gui.Button("Načíst", key="-LOAD GAME BUTTON-"), gui.Button("Zpět", key="-BACK BUTTON0-")]]
 
         self._opponent_select_layout = [
             [gui.Text("Vyber typ hry:")], 
             [gui.Button("Hráč proti Hráči", key="-PLAYER GAME BUTTON-")], 
-            [gui.Button("Hráč prti AI", key="-AI GAME BUTTON-")]]
+            [gui.Button("Hráč prti AI", key="-AI GAME BUTTON-")],
+            [gui.Button("Zpět", key="-BACK BUTTON1-")]]
 
         self._game_layout = [
                 #[gui.Graph("""gaming board""")], 
@@ -31,7 +31,7 @@ class GameWindow:
                 [gui.Text("Hraje:", key="-PLAYS WHITE TEXT-"), gui.Text("Player1",key="-WHITE PLAYER-")], 
                 #[gui.Graph("""player white dices""")], 
                 [gui.Button("Uložit", key="-SAVE BUTTON-")],
-                [gui.Button("Odejít", key="-BACK BUTTON-")]]
+                [gui.Button("Odejít", key="-BACK BUTTON2-")]]
 
         self._window_layout = [
                 [gui.Column(self._main_menu_layout, key="-MAIN MENU LAYOUT-", visible=False), 
@@ -91,7 +91,7 @@ class GameWindow:
             if event == "-LOAD MENU BUTTON-":
                 self.ShowLoadMenu()
 
-            if event == "-BACK BUTTON-":
+            if event in [f"-BACK BUTTON{idx}-" for idx in range(3)]:
                 self.ShowMainMenu()
 
             if event == "-NEW GAME BUTTON-":
@@ -104,6 +104,7 @@ class GameWindow:
                 self.ShowGame(gameboard.GameBoard())
 
             if event == "-LOAD GAME BUTTON-":
+                gui.popup(len(values["-FILE SEARCH INPUT-"]))
                 a = self.LoadFile(values["-FILE SEARCH INPUT-"])
                 self.ShowGame(gameboard.LoadGame(a))
 
