@@ -1,5 +1,6 @@
 import PySimpleGUI as gui
-import json
+import gameboard
+import io
 
 class GameWindow:
 
@@ -16,6 +17,11 @@ class GameWindow:
                 [gui.InputText(key="-FILE SEARCH INPUT-"), gui.FilesBrowse("Hledat", file_types = [("JSON", "*.json")], initial_folder=r"C:\Users\Kuzma\OneDrive\Documents\GitHub\vrhcHaby\Uložené hry")], 
                 [gui.Button("Načíst", key="-LOAD GAME BUTTON-"), gui.Button("Zpět", key="-BACK BUTTON-")]]
 
+        self._opponent_select_layout = [
+            [gui.Text("Vyber typ hry:")], 
+            [gui.Button("Hráč proti Hráči", key="-PLAYER GAME BUTTON-")], 
+            [gui.Button("Hráč prti AI", key="-AI GAME BUTTON-")]]
+
         self._game_layout = [
                 #[gui.Graph("""gaming board""")], 
                 [gui.VSeparator()], 
@@ -30,10 +36,13 @@ class GameWindow:
         self._window_layout = [
                 [gui.Column(self._main_menu_layout, key="-MAIN MENU LAYOUT-", visible=False), 
                  gui.Column(self._load_menu_layout, key="-LOAD MENU LAYOUT-", visible=False),
+                 gui.Column(self._opponent_select_layout, key="-OPPONENT SELECT LAYOUT-", visible=False),
                  gui.Column(self._game_layout, key="-GAME LAYOUT-", visible=False),]]
 
 
         self._window = gui.Window("Backgammon", [[self._window_layout]], size=self._window_size, finalize=True)
+
+
 
     def ShowMainMenu(self):
         self.HideAll()
@@ -43,14 +52,21 @@ class GameWindow:
         self.HideAll()
         self._window["-LOAD MENU LAYOUT-"].update(visible=True)
 
-    def ShowGame(self, ):# one more paramater
+    def ShowGame(self, gameboard):# one more paramater
         self.HideAll()
         self._window["-GAME LAYOUT-"].update(visible=True)
+
+    def ShowOpponentSelect(self):
+        self.HideAll()
+        self._window["-OPPONENT SELECT LAYOUT-"].update(visible=True)
+
 
     def HideAll(self):
         self._window["-MAIN MENU LAYOUT-"].update(visible=False)
         self._window["-LOAD MENU LAYOUT-"].update(visible=False)
         self._window["-GAME LAYOUT-"].update(visible=False)
+        self._window["-OPPONENT SELECT LAYOUT-"].update(visible=False)
+
 
 
     def LoadFile(path:str = ""):
@@ -59,10 +75,10 @@ class GameWindow:
             return
         
         try: #----------------------------------------------------not work yet
-            json_file = json.load(open(path))
+            with open(path, "r") as reader:
+                json_file = reader.read()
         except:
             gui.popup("Soubor se nepodařilo otevřít.")
-
 
 
     def Run(self):
@@ -79,11 +95,17 @@ class GameWindow:
                 self.ShowMainMenu()
 
             if event == "-NEW GAME BUTTON-":
-                self.ShowGame()
+                self.ShowOpponentSelect()
+
+            if event == "-PLAYER GAME BUTTON-":
+                self.ShowGame(gameboard.GameBoard())
+
+            if event == "-AI GAME BUTTON-":
+                self.ShowGame(gameboard.GameBoard())
 
             if event == "-LOAD GAME BUTTON-":
-                self.LoadFile(values["-FILE SEARCH INPUT-"])
-                self.ShowGame()
+                a = self.LoadFile(values["-FILE SEARCH INPUT-"])
+                self.ShowGame(gameboard.LoadGame(a))
 
 
 
