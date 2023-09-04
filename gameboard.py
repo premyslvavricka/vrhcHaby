@@ -249,8 +249,8 @@ class GameBoard:
         }
 
     def CanScore(self, start_point):
-        if not self.AllInHome():
-            return False
+        #if not self.AllInHome():           #not supposed to be commented
+        #    return False                           # debug
         for move in self._possible_moves:
             if start_point + (move*self._game_rules["direction"]) == self._game_rules["score_index"]:
                 return True
@@ -478,6 +478,15 @@ class GameBoard:
         return self._dice_bag.GetState()
 
 
+    def ListStoneMoveHistory(self, selected_stone):
+        for stack in self.GetStacks():
+            for stone in stack:
+                if stone.GetIdentity() == selected_stone:
+                    return stone.GetHistory()
+        return []
+        
+
+
     def VictoryPoints(self):
         print(len(self._finish[self._game_rules["playing"]]))
         return len(self._finish[self._game_rules["playing"]])
@@ -498,16 +507,20 @@ class GameBoard:
 def debug():
     gmbrd = GameBoard()
 
-    gmbrd.PrintGround()
+    #gmbrd.PrintGround()
 
-    gmbrd.MoveStone("white", 5, 7)
+    #gmbrd.MoveStone("white", 5, 7)
 
-    gmbrd.PrintGround()
+    #gmbrd.PrintGround()
 
-    print("---------------")
-    gmbrd2 = jsonpickle.decode(jsonpickle.encode(gmbrd, unpicklable=True))
+    #print("---------------")
+    #gmbrd2 = jsonpickle.decode(jsonpickle.encode(gmbrd, unpicklable=True))
 
-    gmbrd2.PrintGround()
+    #gmbrd2.PrintGround()
+
+    #print(gmbrd.GetStacks())
+
+    print(gmbrd.ListStoneMoveHistory("white1"))
 
     #ston = Stone("white", 2, 0)
     #ston.SaveMovement(3)

@@ -60,6 +60,8 @@ class GameWindow:
             # gui.Text("Player2/AI",key="-BLACK PLAYER-")],
             #[gui.Canvas(size=(100, 100), key="-BLACK PLAYER DICES-", background_color="white")],
             #[gui.Button("Hoď kostkami", key="-BLACK THROW BUTTON-", disabled=True), gui.Button("Ukončit tah", key="-END BLACK TURN-", visible=False, disabled=True)],
+            [gui.Text("", key="-GAME TYPE-")],
+            [gui.HorizontalSeparator()],
             [gui.Text("Historie")],
             [gui.Text("", key="-HISTORY TEXT-")],
             [gui.HorizontalSeparator()],
@@ -80,6 +82,7 @@ class GameWindow:
 
         self._winner_layout = [[gui.Text("Konec hry")],
                                [gui.Text("", key="-VICTOR TEXT-"), gui.Text("", key="-SCORE TEXT-")],
+                               [gui.Multiline("", key="-STONE MOVES-")],
                                [gui.Button("Domů", key="-HOME BUTTON-")]]                
 
         self._window_layout = [
@@ -314,7 +317,20 @@ class GameWindow:
         self._window["-ROUND COUNTER-"].update(str(int(math.floor(self._gameboard.GetRound()))))
 
 
+    def ListStonesHistory(self):
+        a = {}
+        for idx in range(15):
+            a[f"white{idx}"] = self._gameboard.ListStoneMoveHistory(f"white{idx}")
 
+        for idx in range(15):
+            a[f"black{idx}"]  = self._gameboard.ListStoneMoveHistory(f"black{idx}")
+        
+        #print([f"{key}: {str(a[key])}\n" for key in a.keys()])
+        b=""
+        for key in a.keys():
+            b += f"{key}: {str(a[key])}\n" 
+        print(b)
+        return b
 
 
     def LoadFile(self, path_to_file):
@@ -401,6 +417,7 @@ class GameWindow:
                                 if self._gameboard.IsVictorious() == 1:
                                     self._window["-GAMEBOARD-"].erase()
                                     self._window["-GAME LAYOUT-"].update(visible=False)
+                                    self._window["-STONE MOVES-"].update(self.ListStonesHistory())
                                     self._window["-ENDGAME LAYOUT-"].update(visible=True)
                                     self._window["-VICTOR TEXT-"].update(self._player_actual.GetName())
                                     self._window["-SCORE TEXT-"].update(self._gameboard.VictoryPoints())
@@ -418,11 +435,13 @@ class GameWindow:
                 self.ShowOpponentSelect()
 
             if event == "-PLAYER GAME BUTTON-":
+                self._window["-GAME TYPE-"].update("Hráč vs Hráč")
                 self._player_actual = players.LocalPlayer("player1", "white")
                 self._player_on_bench = players.LocalPlayer("player2", "black")
                 self.ShowGame(gameboard.GameBoard())
 
             if event == "-AI GAME BUTTON-":
+                self._window["-GAME TYPE-"].update("Hráč vs AI")
                 self._player_actual = players.LocalPlayer("player1", "white")
                 self._player_on_bench = players.AI("AI", "black")
                 self.ShowGame(gameboard.GameBoard())
@@ -451,6 +470,7 @@ class GameWindow:
                     if self._gameboard.IsVictorious() == 1:
                         self._window["-GAMEBOARD-"].erase()
                         self._window["-GAME LAYOUT-"].update(visible=False)
+                        self._window["-STONE MOVES-"].update(self.ListStonesHistory())
                         self._window["-ENDGAME LAYOUT-"].update(visible=True)
                         self._window["-VICTOR TEXT-"].update(self._player_actual.GetName())
                         self._window["-SCORE TEXT-"].update(self._gameboard.VictoryPoints())
