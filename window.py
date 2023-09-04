@@ -1,6 +1,8 @@
 import PySimpleGUI as gui
 import gameboard
 import players
+import jsonpickle
+from datetime import datetime
 
 GAMEBOARD_SIZE = (620, 480)
 
@@ -309,6 +311,28 @@ class GameWindow:
         except:
             gui.popup("Soubor se nepodařilo otevřít.")
 
+        self.DecodeFile(json_file)
+
+
+    def DecodeFile(self, json_text):
+        data = jsonpickle.decode(json_text)
+
+        players.LoadPlayer(data[0])
+        players.LoadPlayer(data[1])
+        
+        gameboard.LoadGame(data[2])
+
+    def SaveGame(self):
+        data = []
+        data.append(players.SavePlayer(self._player_actual))        
+        data.append(players.SavePlayer(self._player_on_bench))
+        
+        data.append(gameboard.SaveGame(self._gameboard))
+
+        with open (f"Uložené Hry\\SavedGame{datetime.strftime(datetime.now(),'%Y-%m-%d %H-%M-%S')}.json", "w") as write_file:
+            write_file.write(jsonpickle.encode(data))
+
+
 
     def UpdateRoundCounter(self):
         pass
@@ -367,10 +391,11 @@ class GameWindow:
 
             if event == "-LOAD GAME BUTTON-":
                 a = self.LoadFile(values["-FILE SEARCH INPUT-"])
-                self.ShowGame(gameboard.LoadGame(a))
+                print(a)
+                self.ShowGame(self.LoadFile(a))
 
             if event == "-SAVE BUTTON-":
-                gameboard.SaveGame()
+                self.SaveGame()
 
             if event == "-THROW BUTTON-":
                 self._gameboard.ThrowDices()

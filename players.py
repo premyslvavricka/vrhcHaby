@@ -3,6 +3,14 @@
 from typing import Any
 import random
 import gameboard
+import jsonpickle
+
+def SavePlayer(player):
+    return jsonpickle.encode(player, unpicklable=True)
+
+def LoadPlayer(data_string):
+    return jsonpickle.decode(data_string)
+
 
 class Player:
 

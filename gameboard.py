@@ -506,4 +506,5 @@ if __name__ == "__main__":
 nacitani a savovani
 hrac v nacitani a savovani (ulozit do gameboardu a serializovat)
 pravidla inhome, inacepoint
+dumpnout vsechno jako slovnik :) /pole
 """
