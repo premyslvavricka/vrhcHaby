@@ -3,6 +3,7 @@ import gameboard
 import players
 import jsonpickle
 from datetime import datetime
+import math
 
 GAMEBOARD_SIZE = (620, 480)
 
@@ -62,7 +63,7 @@ class GameWindow:
             [gui.Text("Historie")],
             [gui.Text("", key="-HISTORY TEXT-")],
             [gui.HorizontalSeparator()],
-            [gui.Text("Kolo: 0", key= "-ROUND COUNTER-")], 
+            [gui.Text("Kolo: "), gui.Text("0", key= "-ROUND COUNTER-")], 
             [gui.HorizontalSeparator()],
             [gui.Text("Hraje:"), gui.Text("Player1",key="-PLAYING PLAYER-")], 
             #[gui.Canvas(size=(100, 100), key="-PLAYER DICES-", background_color= "white")],
@@ -105,7 +106,7 @@ class GameWindow:
         self.HideAll()
         self._gameboard = gameboard_to_show
         self._window["-GAME LAYOUT-"].update(visible=True)
-
+        self._gameboard.Update()
         self.DrawTriangles()
         self.DrawRectangles()
         self.DrawStones()
@@ -113,7 +114,10 @@ class GameWindow:
         self.UpdateGame()
 
         self.StartTurn()
-
+        if self._gameboard.AskAlreadyThrown():
+            self.InMiddleOfTurn()
+        if self._gameboard.AskAlreadyThrown() and (not self._gameboard.CanContinueTurn()):
+            self.FinalizeTurn()
     
 
     def DrawHint(self, selected_idx):
@@ -121,7 +125,7 @@ class GameWindow:
         self.DeleteHints()
 
         hints = self._gameboard.AvailableMoves(selected_idx)
-        print(f"hints: {hints}")
+        #print(f"hints: {hints}")
         for target_position in hints :
             if target_position < 12: 
                 self._hint_points.append(self._window["-GAMEBOARD-"].draw_point((self._rectangle_middle_points[target_position][0], self._rectangle_middle_points[target_position][1]-180),10, color="green"))
@@ -147,19 +151,29 @@ class GameWindow:
         for stack in self._gameboard.GetStacks():
             for stone in stack:
                 self._stone_list[stone.GetIdentity()] = self._window["-GAMEBOARD-"].draw_circle((0,0), 18, fill_color=stone.GetColor())
+        for stone in self._gameboard.GetWhitePrison():
+            self._stone_list[stone.GetIdentity()] = self._window["-GAMEBOARD-"].draw_circle((0,0), 18, fill_color=stone.GetColor())
+
+        for stone in self._gameboard.GetBlackPrison():
+            self._stone_list[stone.GetIdentity()] = self._window["-GAMEBOARD-"].draw_circle((0,0), 18, fill_color=stone.GetColor())
+
+        for stone in self._gameboard.GetWhiteFinish():
+            self._stone_list[stone.GetIdentity()] = self._window["-GAMEBOARD-"].draw_circle((0,0), 18, fill_color=stone.GetColor())
+
+        for stone in self._gameboard.GetBlackFinish():
+            self._stone_list[stone.GetIdentity()] = self._window["-GAMEBOARD-"].draw_circle((0,0), 18, fill_color=stone.GetColor())
 
 
     def MoveStone(self, start_postion, target_position):
         self._gameboard.MoveStone(start_postion, target_position)
         self.DeleteHints()
-        if not self._gameboard.CanContinueTurn():
-            self.FinalizeTurn()
+        self.UpdateActionButton()
         if self._gameboard.IsInPrison():
             self.DrawHint(gameboard.PRISON)
         self.UpdateGame()
     
-        
-
+    def InMiddleOfTurn(self):
+        self._window["-THROW BUTTON-"].update(disabled=True)
 
     def FinalizeTurn(self):
         self._window["-THROW BUTTON-"].update(disabled=True, visible=False)
@@ -297,6 +311,9 @@ class GameWindow:
 
         self._window["-LIST DICES-"].update(str(self._gameboard.GetDices()))
         self._window["-POSSIBLE MOVES-"].update(str(self._gameboard.GetAvailableMoves()))
+        self._window["-ROUND COUNTER-"].update(str(int(math.floor(self._gameboard.GetRound()))))
+
+
 
 
 
@@ -322,21 +339,42 @@ class GameWindow:
         
         gameboard.LoadGame(data[2])
 
+
     def SaveGame(self):
         data = []
-        data.append(players.SavePlayer(self._player_actual))        
-        data.append(players.SavePlayer(self._player_on_bench))
+        data.append(self._player_actual)    
+        data.append(self._player_on_bench)
         
-        data.append(gameboard.SaveGame(self._gameboard))
+        data.append(self._gameboard)
 
         with open (f"Uložené Hry\\SavedGame{datetime.strftime(datetime.now(),'%Y-%m-%d %H-%M-%S')}.json", "w") as write_file:
             write_file.write(jsonpickle.encode(data))
+
+    def LoadGame(self, path_to_file):
+        if path_to_file[-5:] != ".json":
+            gui.popup("Soubor není JSON formátu")
+            return
+        
+        try: #---------------------------------------------------- maybe work
+            with open(path_to_file, "r") as reader:
+                json_file = reader.read()
+        except:
+            gui.popup("Soubor se nepodařilo otevřít.")        
+        a = jsonpickle.decode(json_file)
+        self._player_actual = a[0]
+        self._player_on_bench = a[1]
+        return a[2]
 
 
 
     def UpdateRoundCounter(self):
         pass
 
+    
+    def UpdateActionButton(self):
+        self._window["-THROW BUTTON-"].update(disabled=True)
+        if not self._gameboard.CanContinueTurn():
+            self.FinalizeTurn()
 
     def Run(self):
         while(True):
@@ -354,7 +392,7 @@ class GameWindow:
                     else:
                         self.MoveStone(self._select_first, selected_idx)
                 else:
-                    print(values["-GAMEBOARD-"][0])
+                    #print(values["-GAMEBOARD-"][0])
 
                     if self._select_first >= 0:
                         if self._gameboard.CanScore(self._select_first):
@@ -390,9 +428,10 @@ class GameWindow:
                 self.ShowGame(gameboard.GameBoard())
 
             if event == "-LOAD GAME BUTTON-":
-                a = self.LoadFile(values["-FILE SEARCH INPUT-"])
-                print(a)
-                self.ShowGame(self.LoadFile(a))
+                #a = self.LoadFile(values["-FILE SEARCH INPUT-"])
+                a = self.LoadGame(values["-FILE SEARCH INPUT-"])
+                #self.ShowGame(self.LoadFile(a))
+                self.ShowGame(a)
 
             if event == "-SAVE BUTTON-":
                 self.SaveGame()
@@ -408,7 +447,7 @@ class GameWindow:
 
             if event == "-END TURN BUTTON-":
                 self.EndTurn()
-                if self._player_actual.DoTurn(self._gameboard):
+                if self._player_actual.GetName() == "AI" and self._player_actual.DoTurn(self._gameboard):
                     if self._gameboard.IsVictorious() == 1:
                         self._window["-GAMEBOARD-"].erase()
                         self._window["-GAME LAYOUT-"].update(visible=False)

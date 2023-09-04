@@ -150,7 +150,7 @@ class GameBoard:
         self.PreparePlayGround(initial_stone_placements)
 
         self._history = {1:[]}
-        self._round = 1
+        self._round = 1.0
 
         self._dice_bag = DiceBag()
 
@@ -189,23 +189,24 @@ class GameBoard:
         #much more here
 
 
-    def AllInHome(self, player):                    #check
+    def AllInHome(self):                    #check
         #area = range(6,24) if player == "white" else range(0,18)
         #return self.CheckOutsideArea(player, area)
 
-        return self.CheckOutsideArea(player, self._game_rules["home_area"])
+        return self.CheckOutsideArea(self._game_rules["home_area"])
 
 
-    def AllInAcePoint(self, player):                #check
+    def AllInAcePoint(self):                #check
         #area = range(1,24) if player == "white" else range(0,23)
         #return self.CheckOutsideArea(player, area)
 
-        return self.CheckOutsideArea(player, self._game_rules["ace_point"])
+        return self.CheckOutsideArea(self._game_rules["ace_point"])
 
-    def CheckOutsideArea(self, player, area):
+    def CheckOutsideArea(self,  area):
         outside_area = [point for point in range(0,24) if point not in area]
+        print(outside_area)
         for position in outside_area:
-            if player == self._board_playground[position].GetHeldColor():
+            if self._game_rules["playing"] == self._board_playground[position].GetHeldColor():
                 return False
         return True
 
@@ -248,6 +249,8 @@ class GameBoard:
         }
 
     def CanScore(self, start_point):
+        if not self.AllInHome():
+            return False
         for move in self._possible_moves:
             if start_point + (move*self._game_rules["direction"]) == self._game_rules["score_index"]:
                 return True
@@ -267,14 +270,21 @@ class GameBoard:
     def AvailableMoves(self, start_point):
         if start_point == PRISON:
             return self.GenerateAvailableMoves(start_point)
+        
         return self._all_possible_moves[start_point]
 
+
+    def AskAlreadyThrown(self):
+        return self._thrown_already
 
     def CanContinueTurn(self):
         if self.IsInPrison():
             if len(self.AvailableMoves(PRISON)) == 0:
                 return False
+        self.__GenerateAllPossibleMoves()
+        print(f"possible moves: {self._possible_moves}")
         for key in self._all_possible_moves.keys():
+            print(f"{key} : {self._all_possible_moves[key]}")
             if len(self._all_possible_moves[key]) > 0:
                 return True
             
@@ -282,6 +292,10 @@ class GameBoard:
     
 
     def GenerateAvailableMoves(self, start_point):
+
+        if len(self._possible_moves) == 0:
+                print("empty")
+                return []
         
         if start_point == PRISON:
             a = []
@@ -300,7 +314,7 @@ class GameBoard:
         if self._board_playground[start_point].CountByColor(self._game_rules["playing"]) < 1:
             return []
 
-        elif self.AllInHome(self._game_rules["playing"]):
+        elif self.AllInHome():
             unlock_finish = True
 
             if self.AllInAcePoint(self._game_rules["playing"]):
@@ -322,7 +336,11 @@ class GameBoard:
         return available_moves
 
 
+    def Update(self):
+        self.__GenerateAllPossibleMoves()
+
     def EndTurn(self):
+        self._round += 1/2
         self._thrown_already = False
         self.SetRules(self._game_rules["opponent"])
         self._possible_moves = []
@@ -371,11 +389,11 @@ class GameBoard:
             if target_point in self.AvailableMoves(start_point):
                 if self._board_playground[target_point].CountByColor(self._game_rules["opponent"]) == 1:
                     self.ToPrison(target_point)
-                print(f"before: {self._possible_moves}")
+                #print(f"before: {self._possible_moves}")
                 stone_to_move = self._prison[self._game_rules["playing"]].PopOut()
                 self._board_playground[target_point].InsertIn(stone_to_move)
                 self._possible_moves.remove(abs(self._game_rules["prison_offset"] - target_point))
-                print(f"after: {self._possible_moves}")
+                #print(f"after: {self._possible_moves}")
                 self.__GenerateAllPossibleMoves()
 
             return      
@@ -449,7 +467,7 @@ class GameBoard:
         return self._history
 
     def GetRound(self):
-        return self._history
+        return self._round
     
     def GetAvailableMoves(self):
         return self._possible_moves
