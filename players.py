@@ -1,71 +1,56 @@
 #třídy: zásobník, kostka?, hrací deska, hráč1 - hráč2, AI, printer
-from random import randint
 
-class EndlessStack:
-    """
-    Třída slouží k reprezentování kamenů na jednotlivým políčku
-    - initial_stones = list, který slouží k naplnění políčka kameny na začátku či načtení hry
-    """
+from typing import Any
+import random
+import gameboard
 
-    def __init__(self, initial_stones:list = []):
-        self._stones_list = initial_stones
-        self._current_list_size = len(self._stones_list)
+class Player:
 
-    def InsertIn(self, stone_to_insert):
-        self._stones_list.append(stone_to_insert)
-        self._current_list_size += 1
-
-    def PopOut(self):
-        self._current_list_size -= 1
-        return self._stones_list.pop(self._current_list_size)
-    
-    #def ListOne(self, idx:int = 0):
-    #    return self._stones_list[idx].GiveSelf()
-
-    def ListList(self):
-        return [self._stones_list[idx].GiveSelf() for idx in range(self._current_list_size)]
-
-
-class Dices:
-    """
-    Třída slouží k vygenerování náhodného hodu dvou kostky do hry
-    """
-
-    def __init__(self):
-        self._dices_throw = tuple
-
-    def Throw(self):
-        self._dices_throw = (randint(1,6), randint(1,6))
-
-    def Read(self):
-        return self._dices_throw
-    
-
-class Stone():
-
-    def __init__(self, color:str, number:int):
+    def __init__(self, name, color):
+        self._name = name
         self._color = color
-        self._identity = color[0] + str(number)
+        
+    def GetName(self):
+        return self._name
 
-    def GiveColor(self):
+    def GetColor(self):
         return self._color
+    
+    def DoTurn(self, game_board):
+        pass
 
-    def GiveSelf(self):
-        return self._identity
+class LocalPlayer(Player):
 
+    def __init__(self, name, color):
+        super().__init__(name, color)
 
+    def DoTurn(self, game_board):
+        return False
 
+class AI(Player):
 
-kameny = [Stone("white",idx+1) for idx in range(5)]
+    def __init__(self, name, color):
+        super().__init__(name, color)
 
-zasobnik1 = EndlessStack(kameny)
+    def DoTurn(self, game_board):
+        game_board.ThrowDices()
 
-print(zasobnik1.ListList())
+        while(game_board.CanContinueTurn()):
+            all_possible_moves = game_board.GetAllPossibleMoves()
+            if game_board.IsInPrison():
+                game_board.MoveStone(gameboard.PRISON, random.choice(game_board.AvailableMoves(gameboard.PRISON)))
+                continue
+            #if gameboard.CanScore():
+            scorable = game_board.ScoreableIndexes()
+            print(scorable)
+            print(game_board.GetAvailableMoves())
+            if len(scorable) > 0:
+                game_board.MoveStone(scorable[0], gameboard.SCORE_INDEX)
+                continue
 
-a = zasobnik1.PopOut()
+            for idx in range(len(all_possible_moves)):
+                if len(all_possible_moves[idx]) != 0:
+                    game_board.MoveStone(idx, random.choice(all_possible_moves[idx]))
+                    break
 
-print(a.GiveColor())
-
-print(zasobnik1.ListList())
-
-
+        return True

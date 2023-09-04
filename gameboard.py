@@ -10,7 +10,7 @@ class EndlessStack:
     - initial_stones = list, který slouží k naplnění políčka kameny na začátku či načtení hry
     """
 
-    def __init__(self, identity:int, initial_stones:list = []):
+    def __init__(self, identity:int, initial_stones:list):
         self._identityInt = identity                        #ciselne oznaceni policka
         self._stones_list = initial_stones                  #seznam s kameny
 
@@ -45,11 +45,18 @@ class EndlessStack:
     def ListList(self):         #vraci cele pole """debug"""
         return [self._stones_list[idx].GetIdentity() for idx in range(self.__len__())]
 
-    def ListStones(self):
+    def ListStones(self):       #vraci pole kamenu
         return [self._stones_list[idx] for idx in range(self.__len__())]
 
     def __len__(self):          #vraci delku pole
         return len(self._stones_list)
+    
+    def CountByColor(self , color):
+        count = 0
+        for stone in self._stones_list:
+            if stone.GetColor() == color:
+                count += 1
+        return count
 
 
 
@@ -59,7 +66,7 @@ class DiceBag:
     """
 
     def __init__(self):
-        self._dices_throw = list
+        self._dices_throw = self.Throw()
 
     def Throw(self):
         self._dices_throw = [randint(1,6) for _ in range(2)]
@@ -127,34 +134,38 @@ def SaveGame(gameboard):
     return jsonpickle.encode(gameboard, unpicklable=True)
 
 
+PRISON = -5
+SCORE_INDEX = -6
+
+REQUIRED_SCORE = 3
+
 class GameBoard:
 
     def __init__(self, load_game:bool = True, initial_stone_placements:dict = initial_stones_placement):
 
         self._board_playground = []
 
-        self._prison_white = EndlessStack(24)
-        self._prison_black = EndlessStack(25)
-
-        self._prison = {"white": EndlessStack(24), "black": EndlessStack(25)}
+        self._prison = {"white": EndlessStack(24, []), "black": EndlessStack(25, [])}
             
         self.PreparePlayGround(initial_stone_placements)
 
         self._history = {1:[]}
         self._round = 1
 
+        self._dice_bag = DiceBag()
+
+        self._finish =  {"white": EndlessStack(27, []), "black": EndlessStack(28, [])}
         self._finish_white = [] # dictionary: { "white" : [], "black" : []}
         self._finish_black = []
 
         self._thrown_already = False 
         self._possible_moves = []
 
-        self._playing = "white"
+        self._all_possible_moves = {}
 
-        self._rule_set = {"white": {}, "black": {}}
+        self.SetRules("white")
 
-        self._home_area = {"white": range(0,6), "black": range(18, 24)}
-        self._ace_point = {"white": 0, "black": 23}
+        self.__GenerateAllPossibleMoves()
 
     # init ------------
     def PreparePlayGround(self, initial_stone_placements:dict):
@@ -182,80 +193,149 @@ class GameBoard:
         #area = range(6,24) if player == "white" else range(0,18)
         #return self.CheckOutsideArea(player, area)
 
-        return self.CheckOutsideArea(player, self._home_area[player])
+        return self.CheckOutsideArea(player, self._game_rules["home_area"])
 
 
     def AllInAcePoint(self, player):                #check
         #area = range(1,24) if player == "white" else range(0,23)
         #return self.CheckOutsideArea(player, area)
 
-        return self.CheckOutsideArea(player, self._ace_point[player])
+        return self.CheckOutsideArea(player, self._game_rules["ace_point"])
 
     def CheckOutsideArea(self, player, area):
-        for position in area:
+        outside_area = [point for point in range(0,24) if point not in area]
+        for position in outside_area:
             if player == self._board_playground[position].GetHeldColor():
                 return False
         return True
 
-    def IsInPrison(self, player):               #check
-        #if player == "white":
-        #    if self._prison_white.GetHeldColor() == player:
-        #        return True
-        #    else: return False
-        #else:
-        #    if self._prison_black.GetHeldColor() == player:
-        #        return True
-        #    else: return False
+    def IsInPrison(self):               #check
 
-        if len(self._prison[player]) > 0:
+        if len(self._prison[self._game_rules["playing"]]) > 0:
             return True
         else:
             return False
-
-
+        
 
     # game update ----------
 
-    def AvailableMoves(self, player, start_point):
-        available_area = range(0,0)
-        available_moves = []
-        keys = []
 
-        if self.IsInPrison(player) == True:
-            keys = self._home_area.keys().remove(player)
-            available_area = self._home_area[keys[0]]           #other players home area
+    def SetRules(self, color):
+        if color == "white":
+            self._game_rules = {
+                "playing" : "white",
+                "opponent" : "black",
+                "direction" : -1,
+                "home_area" : range(0,6),
+                "ace_point" : [0],
+                "from_prison" : range(18,24),
+                "finish_index" : [-1],
+                "prison_offset" : 24,
+                "score_index": -1
 
-        elif self.AllInHome(player) == True:
-            available_area = self._home_area[player] + -1       #unsure if works range() + int
-
-        elif self.AllInAcePoint(player) == True:
-            available_area = -1                                 #any move leads to finish
-            #special stuff
-
+            }
         else:
-            if player == "white":
-                available_area = range(0, start_point)
-            else:
-                available_area = range(start_point, 24)
+            self._game_rules = {
+                "playing" : "black",
+                "opponent" : "white",
+                "direction" : 1,
+                "home_area" : range(18,24),
+                "ace_point" : [23],
+                "from_prison" : range(0,6),
+                "finish_index" : [24],
+                "prison_offset" : -1,
+                "score_index": 24
+        }
 
-        for possible_move in self._possible_moves:
-            if player == "white":
-                if start_point - possible_move in available_area:
-                    if self.IsValidMove(player, start_point, start_point - possible_move):
-                        available_moves.append(start_point - possible_move)
+    def CanScore(self, start_point):
+        for move in self._possible_moves:
+            if start_point + (move*self._game_rules["direction"]) == self._game_rules["score_index"]:
+                return True
+        return False
 
-            else:
-                if start_point + possible_move in available_area:
-                    if self.IsValidMove(player, start_point, start_point + possible_move):
-                        available_moves.append(start_point + possible_move)
-
-
-
-
-    def GetAvailableMoves(self, player, start_point):
-        return self.AvailableMoves(player, start_point)
+    def ScoreableIndexes(self):
+        a = []
+        for point in self._game_rules["home_area"]:
+            if self._board_playground[point].CountByColor(self._game_rules["playing"]) > 0:
+                for move in self._possible_moves:
+                    if point + (move*self._game_rules["direction"]) == self._game_rules["score_index"]:
+                        a.append(point)
+        return a
 
 
+
+    def AvailableMoves(self, start_point):
+        if start_point == PRISON:
+            return self.GenerateAvailableMoves(start_point)
+        return self._all_possible_moves[start_point]
+
+
+    def CanContinueTurn(self):
+        if self.IsInPrison():
+            if len(self.AvailableMoves(PRISON)) == 0:
+                return False
+        for key in self._all_possible_moves.keys():
+            if len(self._all_possible_moves[key]) > 0:
+                return True
+            
+        return False
+    
+
+    def GenerateAvailableMoves(self, start_point):
+        
+        if start_point == PRISON:
+            a = []
+
+            for move in self._possible_moves:
+                target = self._game_rules["prison_offset"]+(self._game_rules["direction"]*move)
+                if target in self._game_rules["from_prison"]:
+                    if self._board_playground[target].CountByColor(self._game_rules["opponent"]) < 2:
+                        a.append(target)  
+            return a
+
+
+        available_area = range(0,24)
+        unlock_finish = False
+
+        if self._board_playground[start_point].CountByColor(self._game_rules["playing"]) < 1:
+            return []
+
+        elif self.AllInHome(self._game_rules["playing"]):
+            unlock_finish = True
+
+            if self.AllInAcePoint(self._game_rules["playing"]):
+                self._possible_moves = [1 for _ in self._possible_moves]
+
+
+        available_moves = []
+
+        for move in self._possible_moves:
+            target_position = start_point + (move * self._game_rules["direction"])
+            if target_position in available_area:
+                if self._board_playground[target_position].CountByColor(self._game_rules["opponent"]) < 2:
+                    available_moves.append(target_position)
+            #if unlock_finish == True:
+                #if target_position == self._game_rules["finish_index"]:
+                    #...#available_moves.append
+
+
+        return available_moves
+
+
+    def EndTurn(self):
+        self._thrown_already = False
+        self.SetRules(self._game_rules["opponent"])
+        self._possible_moves = []
+        self.__GenerateAllPossibleMoves()
+
+
+    def __GenerateAllPossibleMoves(self):
+        available_area = range(0,24)
+        for idx in available_area:
+            self._all_possible_moves[idx] = self.GenerateAvailableMoves(idx)
+
+    def GetAllPossibleMoves(self):
+        return self._all_possible_moves
 
 
     def WinCondition(self, player):
@@ -274,41 +354,66 @@ class GameBoard:
         self._round += 1
 
     def PassTurn(self):
-        if self._playing == "white":
-            self._playing == "black"
+        pass
 
-        else:
-            self._playing == "white"
+    def MoveStone(self, start_point, target_point):
+        print(self._game_rules["playing"])
 
-    def MoveStone(self, player, start_point, target_point):
-        if self.IsValidMove(player, start_point, target_point):
-            if self._board_playground[target_point].GetHeldColor() != "white" and len(self._board_playground[target_point]) == 1:
-                self.ToPrison("black" if player == "white" else "white", target_point)
+        if target_point == SCORE_INDEX:
+            stone_to_move = self._board_playground[start_point].PopOut()
+            self._finish[self._game_rules["playing"]].InsertIn(stone_to_move)
+            self._possible_moves.remove(abs(self._game_rules["score_index"] - start_point))
+            stone_to_move.SaveMovement(target_point)
+            self.__GenerateAllPossibleMoves()
+
+
+        if start_point == PRISON:
+            if target_point in self.AvailableMoves(start_point):
+                if self._board_playground[target_point].CountByColor(self._game_rules["opponent"]) == 1:
+                    self.ToPrison(target_point)
+                print(f"before: {self._possible_moves}")
+                stone_to_move = self._prison[self._game_rules["playing"]].PopOut()
+                self._board_playground[target_point].InsertIn(stone_to_move)
+                self._possible_moves.remove(abs(self._game_rules["prison_offset"] - target_point))
+                print(f"after: {self._possible_moves}")
+                self.__GenerateAllPossibleMoves()
+
+            return      
+
+        if target_point in self._all_possible_moves[start_point]:
+            if self._board_playground[target_point].CountByColor(self._game_rules["opponent"]) == 1:
+                self.ToPrison(target_point)
+            print(f"before: {self._possible_moves}")
             stone_to_move = self._board_playground[start_point].PopOut()
             self._board_playground[target_point].InsertIn(stone_to_move)
+            self._possible_moves.remove(abs(start_point-target_point))
+            print(f"after: {self._possible_moves}")
+            stone_to_move.SaveMovement(target_point)
+            self.__GenerateAllPossibleMoves()
 
-
-    def ObtainMoves(self, player):
-        if player == "white":
-            self._dice_moves_white = self.ThrowDices()
-        else:
-            self._dice_moves_black = self.ThrowDices()
 
     def ThrowDices(self):
-        dice_throw = DiceBag().Throw()
+        if self._thrown_already == True:
+            return self._possible_moves
+        
+        dice_throw = self._dice_bag.Throw()
 
         if dice_throw[0] == dice_throw[1]:
-            return [dice_throw[0] for _ in range(4)]
+            self._possible_moves = [dice_throw[0] for _ in range(4)]
         else:
-            return list(dice_throw)
+            self._possible_moves = list(dice_throw)
+        
+        self._thrown_already = True
+        self.__GenerateAllPossibleMoves()
+        return self._possible_moves
 
-    def ToPrison(self, opposing_player, point):
-        stone_to_prison = self._board_playground[point].PopOut()
-        if opposing_player == "white":
-            self._prison_white.InsertIn(stone_to_prison)
-        else:
-            self._prison_black.InsertIn(stone_to_prison)
+    def ToPrison(self, target_point):
+        stone_to_prison = self._board_playground[target_point].PopOut()
+        
+        self._prison[self._game_rules["opponent"]].InsertIn(stone_to_prison)
+        
         stone_to_prison.SaveMovement("Prison")
+
     # Get ----------
 
     def GetGameSpace(self):
@@ -316,9 +421,26 @@ class GameBoard:
         for point in self._board_playground:
             listing[point.GetAsInt()] = point.ListStones()
         return listing
+    
+    def GetStacks(self):
+        listing = []
+        for idx in range(len(self._board_playground)):
+            listing.append(self._board_playground[idx].ListStones())
+        return listing
 
-    def GetPrison(self, player):
-        return self._prison_white if player == "white" else self._prison_black
+
+    def GetWhitePrison(self):
+        return self._prison["white"].ListStones()
+    
+    def GetBlackPrison(self):
+        return self._prison["black"].ListStones()
+
+    def GetWhiteFinish(self):
+        return self._finish["white"].ListStones()
+    
+    def GetBlackFinish(self):
+        return self._finish["black"].ListStones()
+
 
     def GetFinish(self, player):
         return self._finish_white if player == "white" else self._finish_black
@@ -326,8 +448,26 @@ class GameBoard:
     def GetHistory(self):
         return self._history
 
+    def GetRound(self):
+        return self._history
+    
+    def GetAvailableMoves(self):
+        return self._possible_moves
+    
     def GetDices(self):
-        return self._dice_moves
+        if not self._thrown_already:
+            return []
+        return self._dice_bag.GetState()
+
+
+    def VictoryPoints(self):
+        print(len(self._finish[self._game_rules["playing"]]))
+        return len(self._finish[self._game_rules["playing"]])
+
+    def IsVictorious(self):
+        if self.VictoryPoints() == REQUIRED_SCORE:
+            return 1
+        return 0
 
     #debug ------------
 
@@ -337,25 +477,33 @@ class GameBoard:
 
 
 
+def debug():
+    gmbrd = GameBoard()
 
-gmbrd = GameBoard()
+    gmbrd.PrintGround()
 
-gmbrd.PrintGround()
+    gmbrd.MoveStone("white", 5, 7)
 
-gmbrd.MoveStone("white", 5, 7)
+    gmbrd.PrintGround()
 
-gmbrd.PrintGround()
+    print("---------------")
+    gmbrd2 = jsonpickle.decode(jsonpickle.encode(gmbrd, unpicklable=True))
 
-print("---------------")
-gmbrd2 = jsonpickle.decode(jsonpickle.encode(gmbrd, unpicklable=True))
+    gmbrd2.PrintGround()
 
-gmbrd2.PrintGround()
+    #ston = Stone("white", 2, 0)
+    #ston.SaveMovement(3)
+    #print(ston.GetHistory())
+    #
+    #zasob = EndlessStack(1, [ston, ston])
 
-#ston = Stone("white", 2, 0)
-#ston.SaveMovement(3)
-#print(ston.GetHistory())
-#
-#zasob = EndlessStack(1, [ston, ston])
+if __name__ == "__main__":
+    debug()
 
 
 
+"""
+nacitani a savovani
+hrac v nacitani a savovani (ulozit do gameboardu a serializovat)
+pravidla inhome, inacepoint
+"""
