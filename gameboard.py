@@ -11,11 +11,11 @@ class Stone():
         self._color = color
         self._number = number
         self._history_of_movement = [("bar", position)]
-        print(f"{self.GetIdentity()}: {self._history_of_movement}")
+        #print(f"{self.GetIdentity()}: {self._history_of_movement}")
 
     def SaveMovement(self, moved_position):
         self._history_of_movement.append((self._history_of_movement[len(self._history_of_movement)-1][1], moved_position))
-        print(f"{self.GetIdentity()}: {self.GetHistory()}")
+        #print(f"{self.GetIdentity()}: {self.GetHistory()}")
 
     def GetColor(self):
         return self._color
@@ -520,11 +520,21 @@ class GameBoard:
 
 
     def ListStoneMoveHistory(self, selected_stone):
-        for stack in self.GetStacks():
+        all_stacks = self.GetStacks()
+        all_stacks.append(self.GetWhiteFinish())
+        all_stacks.append(self.GetBlackFinish())
+        all_stacks.append(self.GetWhitePrison())
+        all_stacks.append(self.GetBlackPrison())
+        print(all_stacks)
+        
+
+        for stack in all_stacks:
             for stone in stack:
                 if stone.GetIdentity() == selected_stone:
                     return stone.GetHistory()
+   
         return []
+
         
 
 
