@@ -48,13 +48,14 @@ class AI(Player):
             if game_board.IsInPrison():
                 game_board.MoveStone(gameboard.PRISON, random.choice(game_board.AvailableMoves(gameboard.PRISON)))
                 continue
-            #if gameboard.CanScore():
-            scorable = game_board.ScoreableIndexes()
-            print(scorable)
-            print(game_board.GetAvailableMoves())
-            if len(scorable) > 0:
-                game_board.MoveStone(scorable[0], gameboard.SCORE_INDEX)
-                continue
+            for idx in game_board.GetHomeArea():
+                if game_board.CanScore(idx):
+                    scorable = game_board.ScoreableIndexes()
+                    print(scorable)
+                    print(game_board.GetAvailableMoves())
+                    if len(scorable) > 0:
+                        game_board.MoveStone(scorable[0], gameboard.SCORE_INDEX)
+                        continue
 
             for idx in range(len(all_possible_moves)):
                 if len(all_possible_moves[idx]) != 0:

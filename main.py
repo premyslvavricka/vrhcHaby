@@ -1,3 +1,4 @@
+#import window_copy as window
 import window
 
 def main():
@@ -7,6 +8,12 @@ def main():
     okno.ShowMainMenu()
     okno.Run()
     okno.Close()
+
+    #okno = window.GameWindow()
+#
+    #okno.ShowMainMenu()
+    #okno.RunWindow()
+    #okno.Close()
 
 if __name__ == "__main__":
     main()

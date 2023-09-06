@@ -4,6 +4,33 @@ from typing import Any
 import jsonpickle
 
 
+
+class Stone():
+
+    def __init__(self, color:str, number:int, position:chr):
+        self._color = color
+        self._number = number
+        self._history_of_movement = [("bar", position)]
+        print(f"{self.GetIdentity()}: {self._history_of_movement}")
+
+    def SaveMovement(self, moved_position):
+        self._history_of_movement.append((self._history_of_movement[len(self._history_of_movement)-1][1], moved_position))
+        print(f"{self.GetIdentity()}: {self.GetHistory()}")
+
+    def GetColor(self):
+        return self._color
+    
+    def GetNumber(self):
+        return self._number
+
+    def GetIdentity(self):          # debug, mozne odebrat
+        return self._color + str(self._number)
+
+    def GetHistory(self):
+        return self._history_of_movement
+
+
+
 class EndlessStack:
     """
     Třída slouží k reprezentování kamenů na jednotlivým políčku
@@ -24,8 +51,9 @@ class EndlessStack:
         else:
             self._held_color = "None"
 
-    def InsertIn(self, stone_to_insert):            #vklada kamen do seznamu
+    def InsertIn(self, stone_to_insert:Stone):            #vklada kamen do seznamu
         self._stones_list.append(stone_to_insert)
+        stone_to_insert.SaveMovement(self.GetAsInt())
         self.__SetColor()
 
     def PopOut(self):               #vyhazuje vrchni prvek seznamu
@@ -34,7 +62,7 @@ class EndlessStack:
             return self._stones_list.pop(self.__len__()-1)
     
     def GetAsChar(self):       #vraci pismene oznaceni policka
-        return chr(97 + self._identityInt)
+        return chr(65 + self._identityInt)
     
     def GetAsInt(self):       #vraci ciselne oznaceni policka
         return self._identityInt
@@ -76,29 +104,6 @@ class DiceBag:
         return self._dices_throw
     
 
-class Stone():
-
-    def __init__(self, color:str, number:int, position:chr):
-        self._color = color
-        self._number = number
-        self._history_of_movement = [("bar", position)]
-
-    def SaveMovement(self, moved_position):
-        self._history_of_movement.append((self._history_of_movement[len(self._history_of_movement)-1][1], moved_position))
-
-    def GetColor(self):
-        return self._color
-    
-    def GetNumber(self):
-        return self._number
-
-    def GetIdentity(self):          # debug, mozne odebrat
-        return self._color + str(self._number)
-
-    def GetHistory(self):
-        return self._history_of_movement
-
-
 #kameny = [Stone("white",idx+1) for idx in range(5)]
 #
 #zasobnik1 = EndlessStack(kameny)
@@ -137,7 +142,7 @@ def SaveGame(gameboard):
 PRISON = -5
 SCORE_INDEX = -6
 
-REQUIRED_SCORE = 3
+REQUIRED_SCORE = 15
 
 class GameBoard:
 
@@ -145,18 +150,16 @@ class GameBoard:
 
         self._board_playground = []
 
-        self._prison = {"white": EndlessStack(24, []), "black": EndlessStack(25, [])}
+        self._prison = {"white": EndlessStack(-1, []), "black": EndlessStack(-1, [])}
             
         self.PreparePlayGround(initial_stone_placements)
 
-        self._history = {1:[]}
-        self._round = 1.0
+        self._history = {}
+        self._round = 0
 
         self._dice_bag = DiceBag()
 
-        self._finish =  {"white": EndlessStack(27, []), "black": EndlessStack(28, [])}
-        self._finish_white = [] # dictionary: { "white" : [], "black" : []}
-        self._finish_black = []
+        self._finish =  {"white": EndlessStack(24, []), "black": EndlessStack(24, [])}
 
         self._thrown_already = False 
         self._possible_moves = []
@@ -204,9 +207,9 @@ class GameBoard:
 
     def CheckOutsideArea(self,  area):
         outside_area = [point for point in range(0,24) if point not in area]
-        print(outside_area)
+        #print(outside_area)
         for position in outside_area:
-            if self._game_rules["playing"] == self._board_playground[position].GetHeldColor():
+            if self._board_playground[position].CountByColor(self._game_rules["playing"]):
                 return False
         return True
 
@@ -217,6 +220,9 @@ class GameBoard:
         else:
             return False
         
+
+    
+    
 
     # game update ----------
 
@@ -232,9 +238,11 @@ class GameBoard:
                 "from_prison" : range(18,24),
                 "finish_index" : [-1],
                 "prison_offset" : 24,
-                "score_index": -1
-
+                "score_index": -1,
+                "opponent_home" : range(18,24),
             }
+            self._round += 1
+            self.__WriteHistory(f"{self.GetRound()}. začalo")
         else:
             self._game_rules = {
                 "playing" : "black",
@@ -245,16 +253,21 @@ class GameBoard:
                 "from_prison" : range(0,6),
                 "finish_index" : [24],
                 "prison_offset" : -1,
-                "score_index": 24
+                "score_index": 24,
+                "opponent_home" : range(0,6),
         }
 
     def CanScore(self, start_point):
-        #if not self.AllInHome():           #not supposed to be commented
-        #    return False                           # debug
+        if not self.AllInHome():    
+            #print("not home")       
+            return False                           
         for move in self._possible_moves:
             if start_point + (move*self._game_rules["direction"]) == self._game_rules["score_index"]:
                 return True
-        return False
+
+
+    def GetHomeArea(self):
+        return self._game_rules["home_area"]
 
     def ScoreableIndexes(self):
         a = []
@@ -282,9 +295,7 @@ class GameBoard:
             if len(self.AvailableMoves(PRISON)) == 0:
                 return False
         self.__GenerateAllPossibleMoves()
-        print(f"possible moves: {self._possible_moves}")
         for key in self._all_possible_moves.keys():
-            print(f"{key} : {self._all_possible_moves[key]}")
             if len(self._all_possible_moves[key]) > 0:
                 return True
             
@@ -294,7 +305,6 @@ class GameBoard:
     def GenerateAvailableMoves(self, start_point):
 
         if len(self._possible_moves) == 0:
-                print("empty")
                 return []
         
         if start_point == PRISON:
@@ -317,7 +327,7 @@ class GameBoard:
         elif self.AllInHome():
             unlock_finish = True
 
-            if self.AllInAcePoint(self._game_rules["playing"]):
+            if self.AllInAcePoint():
                 self._possible_moves = [1 for _ in self._possible_moves]
 
 
@@ -340,15 +350,33 @@ class GameBoard:
         self.__GenerateAllPossibleMoves()
 
     def EndTurn(self):
-        self._round += 1/2
+        self.__WriteHistory(f"{self._game_rules['playing']} ukončil svůj tah")
         self._thrown_already = False
         self.SetRules(self._game_rules["opponent"])
+        self.__WriteHistory(f"{self._game_rules['playing']} je na tahu")
         self._possible_moves = []
         self.__GenerateAllPossibleMoves()
 
 
+
+    def GetVictoryType(self):
+        if not self.IsVictorious():
+            return
+        
+        if len(self.GetFinish(self._game_rules["opponent"])) > 0:
+            return "Basic Victory"
+        
+        if self.CheckOutsideArea(self._game_rules["opponent_home"]):
+            return "BackGammon"
+
+        if len(self.GetFinish(self._game_rules["opponent"])) == 0:
+            return "Gammon"
+
+
+
     def __GenerateAllPossibleMoves(self):
         available_area = range(0,24)
+        self._all_possible_moves = {}
         for idx in available_area:
             self._all_possible_moves[idx] = self.GenerateAvailableMoves(idx)
 
@@ -365,23 +393,24 @@ class GameBoard:
 
 
     def __WriteHistory(self, what_to_write:str) -> None:
-        self._history[self._round].append(what_to_write)
+        if not self.GetRound() in self._history.keys():
+            self._history[self.GetRound()] = []
+        self._history[self.GetRound()].append(what_to_write)
 
     def NextRound(self):
         self.PassTurn()
-        self._round += 1
 
     def PassTurn(self):
         pass
 
     def MoveStone(self, start_point, target_point):
-        print(self._game_rules["playing"])
 
         if target_point == SCORE_INDEX:
             stone_to_move = self._board_playground[start_point].PopOut()
             self._finish[self._game_rules["playing"]].InsertIn(stone_to_move)
+            self.__WriteHistory(f"{self._game_rules['playing']} skoruje s kamenem {stone_to_move.GetIdentity()}, kterým stoupil do finishe")
             self._possible_moves.remove(abs(self._game_rules["score_index"] - start_point))
-            stone_to_move.SaveMovement(target_point)
+            #stone_to_move.SaveMovement(target_point)
             self.__GenerateAllPossibleMoves()
 
 
@@ -392,6 +421,7 @@ class GameBoard:
                 #print(f"before: {self._possible_moves}")
                 stone_to_move = self._prison[self._game_rules["playing"]].PopOut()
                 self._board_playground[target_point].InsertIn(stone_to_move)
+                self.__WriteHistory(f"{self._game_rules['playing']} utekl z vězení s kamenem {stone_to_move.GetIdentity()} na políčko {self._board_playground[target_point].GetAsChar()}")
                 self._possible_moves.remove(abs(self._game_rules["prison_offset"] - target_point))
                 #print(f"after: {self._possible_moves}")
                 self.__GenerateAllPossibleMoves()
@@ -401,12 +431,13 @@ class GameBoard:
         if target_point in self._all_possible_moves[start_point]:
             if self._board_playground[target_point].CountByColor(self._game_rules["opponent"]) == 1:
                 self.ToPrison(target_point)
-            print(f"before: {self._possible_moves}")
+            #print(f"before: {self._possible_moves}")
             stone_to_move = self._board_playground[start_point].PopOut()
             self._board_playground[target_point].InsertIn(stone_to_move)
+            self.__WriteHistory(f"{self._game_rules['playing']} se posunul s kamenem {stone_to_move.GetIdentity()} na políčko {self._board_playground[target_point].GetAsChar()}")
             self._possible_moves.remove(abs(start_point-target_point))
-            print(f"after: {self._possible_moves}")
-            stone_to_move.SaveMovement(target_point)
+            #print(f"after: {self._possible_moves}")
+            #stone_to_move.SaveMovement(target_point)
             self.__GenerateAllPossibleMoves()
 
 
@@ -414,7 +445,7 @@ class GameBoard:
         if self._thrown_already == True:
             return self._possible_moves
         
-        dice_throw = self._dice_bag.Throw()
+        dice_throw = self._dice_bag.Throw().copy()
 
         if dice_throw[0] == dice_throw[1]:
             self._possible_moves = [dice_throw[0] for _ in range(4)]
@@ -423,14 +454,26 @@ class GameBoard:
         
         self._thrown_already = True
         self.__GenerateAllPossibleMoves()
+
+        self.__WriteHistory(f"{self._game_rules['playing']} ziskal pohyby {self._possible_moves} z hodu kostky")
+
         return self._possible_moves
+
+
+    def GetRoundHistory(self, round = 0):
+        if round == 0: round = self.GetRound()
+        return self._history[round]
+
+    def GetEntireHistory(self):
+        return self._history
+
 
     def ToPrison(self, target_point):
         stone_to_prison = self._board_playground[target_point].PopOut()
         
         self._prison[self._game_rules["opponent"]].InsertIn(stone_to_prison)
         
-        stone_to_prison.SaveMovement("Prison")
+        #stone_to_prison.SaveMovement("Prison")
 
     # Get ----------
 
@@ -461,10 +504,8 @@ class GameBoard:
 
 
     def GetFinish(self, player):
-        return self._finish_white if player == "white" else self._finish_black
-
-    def GetHistory(self):
-        return self._history
+        return self._finish[player]
+    
 
     def GetRound(self):
         return self._round
@@ -488,7 +529,6 @@ class GameBoard:
 
 
     def VictoryPoints(self):
-        print(len(self._finish[self._game_rules["playing"]]))
         return len(self._finish[self._game_rules["playing"]])
 
     def IsVictorious(self):

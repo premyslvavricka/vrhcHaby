@@ -26,7 +26,7 @@ CANVAS_OUTER_MARGIN_Y = 30
 
 class GameWindow:
 
-    def __init__(self, width:int = 800, height:int = 520):
+    def __init__(self, width:int = 820, height:int = 520):
         self._window_size = (width,height) 
 
         self._hint_points = []
@@ -46,29 +46,21 @@ class GameWindow:
         self._opponent_select_layout = [
             [gui.Text("Vyber typ hry:")], 
             [gui.Button("Hráč proti Hráči", key="-PLAYER GAME BUTTON-")], 
-            [gui.Button("Hráč prti AI", key="-AI GAME BUTTON-")],
+            [gui.Button("Hráč proti AI", key="-AI GAME BUTTON-")],
             [gui.Button("Zpět", key="-BACK BUTTON1-")]]
 
-        #self._game_column_board = [[gui.Canvas(size=GAMEBOARD_SIZE, key="-GAMEBOARD-", background_color="white", )]]
 
         self._game_column_board = [[gui.Graph(GAMEBOARD_SIZE, (0, GAMEBOARD_SIZE[1]), (GAMEBOARD_SIZE[0],0), background_color="brown", enable_events=True, key="-GAMEBOARD-")]]
 
         self._game_column_players = [
-            #[gui.Button("Historie", key="-HISTORY BUTTON-")],
-            #[gui.HorizontalSeparator()],
-            #[gui.Text("Hraje:", key="-PLAYS BLACK TEXT-", visible=False), 
-            # gui.Text("Player2/AI",key="-BLACK PLAYER-")],
-            #[gui.Canvas(size=(100, 100), key="-BLACK PLAYER DICES-", background_color="white")],
-            #[gui.Button("Hoď kostkami", key="-BLACK THROW BUTTON-", disabled=True), gui.Button("Ukončit tah", key="-END BLACK TURN-", visible=False, disabled=True)],
             [gui.Text("", key="-GAME TYPE-")],
             [gui.HorizontalSeparator()],
             [gui.Text("Historie")],
-            [gui.Text("", key="-HISTORY TEXT-")],
+            [gui.Multiline("", key="-HISTORY MULTILINE-", autoscroll=True, size=(14,15), enter_submits=False)],
             [gui.HorizontalSeparator()],
             [gui.Text("Kolo: "), gui.Text("0", key= "-ROUND COUNTER-")], 
             [gui.HorizontalSeparator()],
             [gui.Text("Hraje:"), gui.Text("Player1",key="-PLAYING PLAYER-")], 
-            #[gui.Canvas(size=(100, 100), key="-PLAYER DICES-", background_color= "white")],
             [gui.Text("Kostky: "), gui.Text("", key="-LIST DICES-")],
             [gui.Text("Pohyby: "), gui.Text("", key="-POSSIBLE MOVES-")],
             [gui.Button("Hoď kostkami", key="-THROW BUTTON-", disabled=True), 
@@ -80,10 +72,16 @@ class GameWindow:
                               gui.VerticalSeparator(),
                               gui.Column(self._game_column_players)]] 
 
-        self._winner_layout = [[gui.Text("Konec hry")],
-                               [gui.Text("", key="-VICTOR TEXT-"), gui.Text("", key="-SCORE TEXT-")],
-                               [gui.Multiline("", key="-STONE MOVES-")],
-                               [gui.Button("Domů", key="-HOME BUTTON-")]]                
+
+        self._winner_layout = [[gui.Column([[gui.Text("Konec hry")]])],
+                               [gui.Column([
+                                   [gui.Column([
+                                       [gui.Text("Vyhrál: "), gui.Text("", key="-VICTOR TEXT-")]])
+                                    ],
+                                   [gui.Column([
+                                       [gui.Text("Prohrál: "), gui.Text("", key="-LOSER TEXT-")]])]])],
+                               [gui.Column([[gui.Text("", key="-VICTORY TYPE TEXT-")], [gui.Multiline("", key="-STONE MOVES-", size=(80, 15), enter_submits=False)], [gui.Button("Domů", key="-HOME BUTTON-")]])]]
+
 
         self._window_layout = [
                 [gui.Column(self._main_menu_layout, key="-MAIN MENU LAYOUT-", visible=False), 
@@ -112,6 +110,7 @@ class GameWindow:
         self._gameboard.Update()
         self.DrawTriangles()
         self.DrawRectangles()
+        self.DrawChars()
         self.DrawStones()
 
         self.UpdateGame()
@@ -128,12 +127,13 @@ class GameWindow:
         self.DeleteHints()
 
         hints = self._gameboard.AvailableMoves(selected_idx)
-        #print(f"hints: {hints}")
+        print(f"hints: {hints}")
         for target_position in hints :
             if target_position < 12: 
                 self._hint_points.append(self._window["-GAMEBOARD-"].draw_point((self._rectangle_middle_points[target_position][0], self._rectangle_middle_points[target_position][1]-180),10, color="green"))
             else:
                 self._hint_points.append(self._window["-GAMEBOARD-"].draw_point((self._rectangle_middle_points[target_position][0], self._rectangle_middle_points[target_position][1]+180),10, color="green"))
+
         if self._gameboard.CanScore(selected_idx):
             self._hint_points.append(self._window["-GAMEBOARD-"].draw_point((580,240),20, color="green"))
 
@@ -154,6 +154,7 @@ class GameWindow:
         for stack in self._gameboard.GetStacks():
             for stone in stack:
                 self._stone_list[stone.GetIdentity()] = self._window["-GAMEBOARD-"].draw_circle((0,0), 18, fill_color=stone.GetColor())
+
         for stone in self._gameboard.GetWhitePrison():
             self._stone_list[stone.GetIdentity()] = self._window["-GAMEBOARD-"].draw_circle((0,0), 18, fill_color=stone.GetColor())
 
@@ -203,7 +204,7 @@ class GameWindow:
 
         for idx in range(6):
             self._triangles.append(self._window["-GAMEBOARD-"].draw_polygon(
-                [(origin[0]-(CANVAS_TRIANGLE_WIDTH*idx), origin[1]), (origin[0]-(CANVAS_TRIANGLE_WIDTH*(idx+1)), origin[1]), (origin[0]-(CANVAS_TRIANGLE_WIDTH/2+CANVAS_TRIANGLE_WIDTH*idx), origin[1]-CANVAS_TRIANGLE_HEIGHT)], fill_color="red"))
+                [(origin[0]-(CANVAS_TRIANGLE_WIDTH*idx), origin[1]), (origin[0]-(CANVAS_TRIANGLE_WIDTH*(idx+1)), origin[1]), (origin[0]-(CANVAS_TRIANGLE_WIDTH/2+CANVAS_TRIANGLE_WIDTH*idx), origin[1]-CANVAS_TRIANGLE_HEIGHT)], fill_color="red", line_color="black"))
 
             self._rectangle_areas_list.append([(origin[0]-CANVAS_TRIANGLE_WIDTH*idx, origin[1]), (origin[0]-CANVAS_TRIANGLE_WIDTH*(idx+1), origin[1]-CANVAS_TRIANGLE_HEIGHT)])
 
@@ -213,7 +214,7 @@ class GameWindow:
 
         for idx in range(6):
             self._triangles.append(self._window["-GAMEBOARD-"].draw_polygon(
-                [(origin[0]-(CANVAS_TRIANGLE_WIDTH*idx), origin[1]), (origin[0]-(CANVAS_TRIANGLE_WIDTH*(idx+1)), origin[1]), (origin[0]-(CANVAS_TRIANGLE_WIDTH/2+CANVAS_TRIANGLE_WIDTH*idx), origin[1]-CANVAS_TRIANGLE_HEIGHT)], fill_color="red"))
+                [(origin[0]-(CANVAS_TRIANGLE_WIDTH*idx), origin[1]), (origin[0]-(CANVAS_TRIANGLE_WIDTH*(idx+1)), origin[1]), (origin[0]-(CANVAS_TRIANGLE_WIDTH/2+CANVAS_TRIANGLE_WIDTH*idx), origin[1]-CANVAS_TRIANGLE_HEIGHT)], fill_color="red", line_color="black"))
 
             self._rectangle_areas_list.append([(origin[0]-CANVAS_TRIANGLE_WIDTH*idx, origin[1]), (origin[0]-CANVAS_TRIANGLE_WIDTH*(idx+1), origin[1]-CANVAS_TRIANGLE_HEIGHT)])
 
@@ -223,7 +224,7 @@ class GameWindow:
 
         for idx in range(6):
             self._triangles.append(self._window["-GAMEBOARD-"].draw_polygon(
-                [(origin[0]+(CANVAS_TRIANGLE_WIDTH*idx), origin[1]), (origin[0]+(CANVAS_TRIANGLE_WIDTH*(idx+1)), origin[1]), (origin[0]+(CANVAS_TRIANGLE_WIDTH/2+CANVAS_TRIANGLE_WIDTH*idx), origin[1]+CANVAS_TRIANGLE_HEIGHT)], fill_color="red"))
+                [(origin[0]+(CANVAS_TRIANGLE_WIDTH*idx), origin[1]), (origin[0]+(CANVAS_TRIANGLE_WIDTH*(idx+1)), origin[1]), (origin[0]+(CANVAS_TRIANGLE_WIDTH/2+CANVAS_TRIANGLE_WIDTH*idx), origin[1]+CANVAS_TRIANGLE_HEIGHT)], fill_color="red", line_color="black"))
             
             self._rectangle_areas_list.append([(origin[0]+CANVAS_TRIANGLE_WIDTH*(idx+1), origin[1]+CANVAS_TRIANGLE_HEIGHT), (origin[0]+CANVAS_TRIANGLE_WIDTH*idx, origin[1])])
 
@@ -234,7 +235,7 @@ class GameWindow:
 
         for idx in range(6):
             self._triangles.append(self._window["-GAMEBOARD-"].draw_polygon(
-                [(origin[0]+(CANVAS_TRIANGLE_WIDTH*idx), origin[1]), (origin[0]+(CANVAS_TRIANGLE_WIDTH*(idx+1)), origin[1]), (origin[0]+(CANVAS_TRIANGLE_WIDTH/2+CANVAS_TRIANGLE_WIDTH*idx), origin[1]+CANVAS_TRIANGLE_HEIGHT)], fill_color="red"))
+                [(origin[0]+(CANVAS_TRIANGLE_WIDTH*idx), origin[1]), (origin[0]+(CANVAS_TRIANGLE_WIDTH*(idx+1)), origin[1]), (origin[0]+(CANVAS_TRIANGLE_WIDTH/2+CANVAS_TRIANGLE_WIDTH*idx), origin[1]+CANVAS_TRIANGLE_HEIGHT)], fill_color="red", line_color="black"))
             
             self._rectangle_areas_list.append([(origin[0]+CANVAS_TRIANGLE_WIDTH*(idx+1), origin[1]+CANVAS_TRIANGLE_HEIGHT), (origin[0]+CANVAS_TRIANGLE_WIDTH*idx, origin[1])]) 
 
@@ -244,13 +245,37 @@ class GameWindow:
 
     def DrawRectangles(self):
 
-        self._window["-GAMEBOARD-"].draw_rectangle((10, 30), (50, 230), fill_color="red")
-        self._window["-GAMEBOARD-"].draw_rectangle((10, 250), (50, 450), fill_color="red")
+        self._window["-GAMEBOARD-"].draw_rectangle((10, 30), (50, 230), fill_color="red", line_color="black")
+        self._window["-GAMEBOARD-"].draw_rectangle((10, 250), (50, 450), fill_color="red", line_color="black")
 
-        self._window["-GAMEBOARD-"].draw_rectangle((570, 30), (610, 230), fill_color="red")
-        self._window["-GAMEBOARD-"].draw_rectangle((570, 250), (610, 450), fill_color="red")
+        self._window["-GAMEBOARD-"].draw_rectangle((570, 30), (610, 230), fill_color="red", line_color="black")
+        self._window["-GAMEBOARD-"].draw_rectangle((570, 250), (610, 450), fill_color="red", line_color="black")
 
 
+    def DrawChars(self):
+        origin = [540,465]
+        char_idx = 0
+        for move_idx in range(6):
+            self._window["-GAMEBOARD-"].draw_text(chr(65+char_idx), (origin[0]-(40*move_idx),origin[1]), font = 8)
+            char_idx += 1
+
+        origin = [origin[0]-CANVAS_RECTANGLE_AREA_WIDTH-CANVAS_SPACE_BETWEEN_AREAS_X, origin[1]]
+
+        for move_idx in range(6):
+            self._window["-GAMEBOARD-"].draw_text(chr(65+char_idx), (origin[0]-(40*move_idx),origin[1]), font = 8)
+            char_idx += 1
+
+        origin = [80,15]
+
+        for move_idx in range(6):
+            self._window["-GAMEBOARD-"].draw_text(chr(65+char_idx), (origin[0]+(40*move_idx),origin[1]), font = 8)
+            char_idx += 1
+
+        origin = [origin[0]+CANVAS_RECTANGLE_AREA_WIDTH+CANVAS_SPACE_BETWEEN_AREAS_X, origin[1]]
+
+        for move_idx in range(6):
+            self._window["-GAMEBOARD-"].draw_text(chr(65+char_idx), (origin[0]+(40*move_idx),origin[1]), font = 8)
+            char_idx += 1
 
     def ClickOnGraph(self, click_position):
         for idx in range(len(self._rectangle_areas_list)):
@@ -289,24 +314,24 @@ class GameWindow:
                 self._window["-GAMEBOARD-"].relocate_figure(self._stone_list[stacks[outer_idx][inner_idx].GetIdentity()], self._rectangle_middle_points[outer_idx][0]-18, self._rectangle_middle_points[outer_idx][1]+(stone_distance*inner_idx)-18)
 
         stones_in_prison = self._gameboard.GetWhitePrison()
-        print(len(stones_in_prison))
+        #print(len(stones_in_prison))
         for idx in range(len(stones_in_prison)):
             self._window["-GAMEBOARD-"].relocate_figure(self._stone_list[stones_in_prison[idx].GetIdentity()], 30-18, 430-18-(idx*20))
             
 
         stones_in_prison2 = self._gameboard.GetBlackPrison()
-        print(len(stones_in_prison2))
+        #print(len(stones_in_prison2))
         for idx in range(len(stones_in_prison2)):
             self._window["-GAMEBOARD-"].relocate_figure(self._stone_list[stones_in_prison2[idx].GetIdentity()], 30-18, 50-18+(idx*20))
 
         stones_in_finish = self._gameboard.GetWhiteFinish()
-        print(len(stones_in_finish))
+        #print(len(stones_in_finish))
         for idx in range(len(stones_in_finish)):
             self._window["-GAMEBOARD-"].relocate_figure(self._stone_list[stones_in_finish[idx].GetIdentity()], 590-18, 430-18-(idx*20))
             
 
         stones_in_finish = self._gameboard.GetBlackFinish()
-        print(len(stones_in_finish))
+        #print(len(stones_in_finish))
         for idx in range(len(stones_in_finish)):
             self._window["-GAMEBOARD-"].relocate_figure(self._stone_list[stones_in_finish[idx].GetIdentity()], 590-18, 50-18+(idx*20))   
 
@@ -314,7 +339,20 @@ class GameWindow:
 
         self._window["-LIST DICES-"].update(str(self._gameboard.GetDices()))
         self._window["-POSSIBLE MOVES-"].update(str(self._gameboard.GetAvailableMoves()))
-        self._window["-ROUND COUNTER-"].update(str(int(math.floor(self._gameboard.GetRound()))))
+        self._window["-ROUND COUNTER-"].update(str(self._gameboard.GetRound()))
+        self.UpdateHistory()
+
+
+
+    def UpdateHistory(self):
+        history_dict = self._gameboard.GetEntireHistory()
+        history_string = ""
+
+        for key in history_dict.keys():
+            for action in history_dict[key]:
+                history_string += f"{action}\n"    
+
+        self._window["-HISTORY MULTILINE-"].update(history_string)
 
 
     def ListStonesHistory(self):
@@ -329,31 +367,10 @@ class GameWindow:
         b=""
         for key in a.keys():
             b += f"{key}: {str(a[key])}\n" 
-        print(b)
+        #print(b)
         return b
-
-
-    def LoadFile(self, path_to_file):
-        if path_to_file[-5:] != ".json":
-            gui.popup("Soubor není JSON formátu")
-            return
-        
-        try: #---------------------------------------------------- maybe work
-            with open(path_to_file, "r") as reader:
-                json_file = reader.read()
-        except:
-            gui.popup("Soubor se nepodařilo otevřít.")
-
-        self.DecodeFile(json_file)
-
-
-    def DecodeFile(self, json_text):
-        data = jsonpickle.decode(json_text)
-
-        players.LoadPlayer(data[0])
-        players.LoadPlayer(data[1])
-        
-        gameboard.LoadGame(data[2])
+    
+            #stone history prohledava jenom hravi pole, neprohledava finish ani prison
 
 
     def SaveGame(self):
@@ -380,11 +397,6 @@ class GameWindow:
         self._player_actual = a[0]
         self._player_on_bench = a[1]
         return a[2]
-
-
-
-    def UpdateRoundCounter(self):
-        pass
 
     
     def UpdateActionButton(self):
@@ -420,9 +432,12 @@ class GameWindow:
                                     self._window["-STONE MOVES-"].update(self.ListStonesHistory())
                                     self._window["-ENDGAME LAYOUT-"].update(visible=True)
                                     self._window["-VICTOR TEXT-"].update(self._player_actual.GetName())
-                                    self._window["-SCORE TEXT-"].update(self._gameboard.VictoryPoints())
+                                    self._window["-LOSER TEXT-"].update(self._player_on_bench.GetName())
+                                    self._window["-VICTORY TYPE TEXT-"].update(self._gameboard.GetVictoryType())
                         else:
                             self.DeleteHints()
+                if not self._gameboard.CanContinueTurn():
+                    self.FinalizeTurn()
 
             if event == "-LOAD MENU BUTTON-":
                 self.ShowLoadMenu()
@@ -473,7 +488,9 @@ class GameWindow:
                         self._window["-STONE MOVES-"].update(self.ListStonesHistory())
                         self._window["-ENDGAME LAYOUT-"].update(visible=True)
                         self._window["-VICTOR TEXT-"].update(self._player_actual.GetName())
+                        self._window["-LOSER TEXT-"].update(self._player_on_bench.GetName())
                         self._window["-SCORE TEXT-"].update(self._gameboard.VictoryPoints())
+                        self._window["-VICTORY TYPE TEXT-"].update(self._gameboard.GetVictoryType())
                         continue
                     self.EndTurn()
 
